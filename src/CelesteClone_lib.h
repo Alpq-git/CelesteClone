@@ -93,16 +93,57 @@ void _log(const char* prefix, const char* msg, TextColor textColor, Args... args
 #define SM_ERROR(msg, ...) _log("ERROR: ", msg, TEXT_COLOR_RED, ##__VA_ARGS__);
 
 
-#define SM_ASSERT(x, msg, ...) \
-do { \
-  if(!(x)) { \
-    SM_ERROR(msg, ##__VA_ARGS__); \
-    DEBUG_BREAK(); \
-    exit(1); \
-  } \
-} while(0)
+#define SM_ASSERT(x, msg, ...)      \
+{                                   \
+  if(!(x))                          \
+  {                                 \
+    SM_ERROR(msg, ##__VA_ARGS__);   \
+    DEBUG_BREAK();                  \
+    SM_ERROR("Assertion HIT!");     \
+  }                                 \
+}                                   
                
+// #############################################################################
+//                           Array
+// #############################################################################
+template<typename T, int N>
+struct Array
+{
+  static constexpr int maxElements = N;
+  int count = 0;
+  T elements[N];
 
+  T& operator[](int idx)
+  {
+    SM_ASSERT(idx >= 0, "idx negative!");
+    SM_ASSERT(idx < count, "Idx out of bounds!");
+    return elements[idx];
+  }
+
+  int add(T element)
+  {
+    SM_ASSERT(count < maxElements, "Array Full!");
+    elements[count] = element;
+    return count++;
+  }
+
+  void remove_idx_and_swap(int idx)
+  {
+    SM_ASSERT(idx >= 0, "idx negative!");
+    SM_ASSERT(idx < count, "idx out of bounds!");
+    elements[idx] = elements[--count];
+  }
+
+  void clear()
+  {
+    count = 0;
+  }
+
+  bool is_full()
+  {
+    return count == N;
+  }
+};
 
 //#############################################
 //                  Bump Allocator

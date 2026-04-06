@@ -1,2 +1,1 @@
-# CelesteClone"# decentralized-app" 
-"# decentralized-app" 
+# CelesteClone
