@@ -9,11 +9,22 @@
 #include <string.h>
 
 //Used to get the edit timestamps of files
+#include <string>
 #include <sys/stat.h>
 
-//#############################################
+// Obvious right?
+#include <math.h>
+
+
+//####################################################
+//                      Constants
+//####################################################
+constexpr int NUM_CHANNELS = 2;
+constexpr int SAMPLE_RATE = 44100;
+
+//####################################################
 //                  Defines
-//#############################################
+//####################################################
 #ifdef _WIN32
 #define DEBUG_BREAK() __debugbreak()
 #define EXPORT_FN __declspec(dllexport)
@@ -23,6 +34,9 @@
 #define DEBUG_BREAK() __builtin_trap()
 #define EXPORT_FN
 #endif
+
+#define line_id(index) (size_t)(__LINE__ << 16 | (index))
+#define ArraySize(x) (sizeof((x)) / sizeof((x)[0]))
 
 #define b8 char
 #define BIT(x) 1 << (x)
@@ -200,7 +214,7 @@ char* bump_alloc(BumpAllocator* bumpAllocator, size_t size)
 //                  File I/O
 //#############################################
 
-long long get_timestamp(char* file)
+long long get_timestamp(const char* file)
 {
   struct stat file_stat = {};
   stat(file, &file_stat);
@@ -345,15 +359,89 @@ bool copy_file(char* fileName, char* outputName, BumpAllocator* bumpAllocator)
 //#######################################################
 //              Math Stuff
 //#######################################################
+
+int sign(int x)
+{
+  return (x >= 0)? 1: -1;
+}
+
+float sign(float x)
+{
+  return (x >= 0.0f)? 1.0f: -1.0f;
+}
+
+int min(int a, int b)
+{
+  return(a < b)? a:b ;
+}
+
+int max(int a, int b)
+{
+  return (a > b)? a:b;
+}
+
+long long max(long long a, long long b)
+{
+  if(a>b)
+  {
+    return a;
+  }
+  
+  return b;
+}
+
+float max(float a, float b)
+{
+  if(a > b)
+  {
+    return a;
+  }
+
+  return b;
+}
+
+float min(float a, float b)
+{
+  if(a < b)
+  {
+    return a;
+  }
+
+  return b;
+}
+
+float approach(float current, float target, float increase)
+{
+  if(current < target)
+  {
+    return min(current + increase, target);
+  }
+
+  return max(current - increase, target);
+}
+
+
+float lerp(float a, float b, float t)
+{
+   return a + (b - a) * t;
+}
+
+
 struct Vec2
 {
   float x;
   float y;
 
-    Vec2 operator/(float scalar)
+  Vec2 operator/(float scalar)
   {
     return {x / scalar, y / scalar}; 
   }
+
+  Vec2 operator*(float scalar)
+  {
+    return {x * scalar, y * scalar}; 
+  }
+
 
   Vec2 operator-(Vec2 other)
   {
@@ -371,11 +459,45 @@ struct IVec2
   {
     return {x -other.x, y -other.y};
   }
+
+  IVec2& operator-= (int value)
+  {
+    x -= value;
+    y -= value;
+    return *this;
+  }
+
+  IVec2& operator+=(int value)
+  {
+    x += value;
+    y += value;
+    return *this;
+  }
+
+  IVec2 operator/(int scalar)
+  {
+    return{x/scalar,y/scalar};
+  }
 };
 
 Vec2 vec_2(IVec2 v)
 {
   return Vec2{(float)v.x, (float)v.y};
+}
+
+Vec2 lerp(Vec2 a, Vec2 b, float t)
+{
+  Vec2 result;
+  result.x = lerp(a.x, b.x, t);
+  result.y = lerp(a.y, b.y, t);
+  return result;
+}
+
+IVec2 lerp(IVec2 a, IVec2 b, float t)
+{
+  IVec2 result;
+  result.x = (int)floorf(lerp((float)a.x, (float)b.x, t));
+  result.y = (int)floorf(lerp((float)a.y, (float)b.y, t));
 }
 
 struct Vec4
@@ -404,6 +526,12 @@ struct Vec4
   {
     return values[idx];
   }
+
+  bool operator==(Vec4 other)
+  {
+    return x == other.x && y == other.y && z == other.z && w == other.w;
+  }
+
 };
 
 struct Mat4
@@ -456,3 +584,121 @@ Mat4 orthographic_projection(float left, float right, float top, float bottom)
 
   return result;
 }
+
+
+struct Rect 
+{
+  Vec2 pos;
+  Vec2 size;
+};
+
+struct IRect
+{
+  IVec2 pos;
+  IVec2 size;
+};
+
+bool point_in_rect(Vec2 point, Rect rect)
+{
+  return (point.x >= rect.pos.x &&
+          point.x <= rect.pos.x + rect.size.x &&
+          point.y >= rect.pos.y &&
+          point.y >= rect.pos.y + rect.size.y);
+}
+
+bool point_in_rect(IVec2 point, IRect rect)
+{
+  return point_in_rect(vec_2(point), rect);
+}
+
+bool poit_in_rect(Vec2 point, IRect rect)
+{
+  return (point.x >= rect.pos.x &&
+          point.x <= rect.pos.x + rect.size.x &&
+          point.y >= rect.pos.y &&
+          point.y <= rect.pos.y + rect.pos.y);
+}
+
+bool rect_collision(IRect a, IRect b)
+{
+  return a.pos.x < b.pos.x + b.size.x && // Collision on Left of a and right of b
+         a.pos.x + a.size.x > b.pos.x && // Collision on Right of a and left of b
+         a.pos.y < b.pos.y + b.size.y && // Collision on Bottom of a and Top of b
+         a.pos.y + a.size.y > b.pos.y;   // Collision on Top of a and Bottom of b
+}
+
+
+
+//###############################################
+//            WAV File stuff
+//###############################################
+// Wave files are seperate into chunks,
+// struct chunk
+// {
+//  unsigned int id;
+//  unsigned int size // In bytes
+//  ...
+//  }
+// we are ASSUMING!!!! That we have "Riff chunk"
+// followed by a "Format Chunck" followed by a
+// "Data Chunk", this CAN! be wrong of course
+struct WAVHeader
+{
+  // Riff Chunk
+  unsigned int riffChunkId;
+  unsigned int riffChunkSize;
+  unsigned int format;
+
+  // Format Chunk
+  unsigned int formatChunkId;
+  unsigned int formatChunkSize;
+  unsigned short audioFormat;
+  unsigned short numChannels;
+  unsigned int sampleRate;
+  unsigned int byteRate;
+  unsigned short blockAlign;
+  unsigned short bitsPerSample;
+
+  // Data Chunk
+  unsigned char dataChunkId[4];
+  unsigned int dataChunkSize;
+};
+
+struct WAVFile
+{
+  WAVHeader header;
+  char dataBegin;
+};
+
+WAVFile* load_wav(char* path, BumpAllocator* bumpAllocator)
+{
+  int fileSize = 0;
+  WAVFile* wavFile = (WAVFile*)read_file(path, &fileSize, bumpAllocator);
+
+  if(!wavFile)
+  {
+    SM_ASSERT(0,"Failed to load Wave File: %s", path);
+    return nullptr;
+  }
+
+  SM_ASSERT(wavFile->header.numChannels == NUM_CHANNELS,
+            "We only support 2 channels for now!");
+  SM_ASSERT(wavFile->header.sampleRate == SAMPLE_RATE,
+            "We only support 44100 sample rate for now!");
+
+  SM_ASSERT(memcmp(&wavFile->header.dataChunkId,"data",4) == 0,
+            "WAV File not in propper format");
+
+  return wavFile;
+}
+
+
+//###########################################################
+//                      Normal Colors
+//###########################################################
+constexpr Vec4 COLOR_WHITE = {1.0f,1.0f,1.0f,1.0f};
+constexpr Vec4 COLOR_RED = {1.0f,0.0f,1.0f,1.0f};
+constexpr Vec4 COLOR_GREEN = {0.0f,1.0f,0.0f,1.0f};
+constexpr Vec4 COLOR_BLUE = {0.0f,0.0f,1.0f,1.0f};
+constexpr Vec4 COLOR_YELLOW = {1.0f,1.0f,0.0f,1.0f};
+constexpr Vec4 COLOR_BLACK = {0.0f,0.0f,0.0f,1.0f};

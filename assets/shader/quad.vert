@@ -1,15 +1,12 @@
-#version 430 core
 
-//Structs 
-struct Transform
-{
-    vec2 pos;
-    vec2 size;
-    ivec2 atlasOffset;
-    ivec2 spriteSize;
-};
+// Input
 
-//Input
+// Output
+layout (location = 0) out vec2 textureCoordsOut;
+layout (location = 1) out int renderOptions;
+layout (location = 2) out int materialIdx;
+
+// Buffers
 layout (std430, binding = 0) buffer TransformSBO
 {
     Transform transforms[];
@@ -17,10 +14,6 @@ layout (std430, binding = 0) buffer TransformSBO
 
 uniform vec2 screenSize;
 uniform mat4 orthoProjection;
-
-
-//Output
-layout (location = 0) out vec2 textureCoordsOut;
 
 void main()
 {
@@ -43,10 +36,24 @@ void main()
         transform.pos + transform.size                        // Bottom Right
     };
     
-    float left = transform.atlasOffset.x;
-    float top = transform.atlasOffset.y;
-    float right = transform.atlasOffset.x + transform.atlasOffset.y;
-    float botom = transform.atlasOffset.y + transform.atlasOffset.x; 
+    int left = transform.atlasOffset.x;
+    int top = transform.atlasOffset.y;
+    int right = transform.atlasOffset.x + transform.atlasOffset.y;
+    int botom = transform.atlasOffset.y + transform.atlasOffset.x; 
+
+    if(bool(transform.renderOptions & RENDERING_OPTION_FLIP_X))
+    {
+        int tmp = left;
+        left = right;
+        right = tmp;
+    }
+    
+    if(bool(transform.renderOptions & RENDERING_OPTION_FLIP_Y))
+    {
+        int tmp = top;
+        top = bottom;
+        bottom = tmp;
+    }
 
     vec2 textureCoords[6] = 
     {
@@ -60,8 +67,7 @@ void main()
 
 
 
-
-    //Normalize Position
+   //Normalize Position
     {
         vec2 vertexPos = vertices[gl_Vertex];
         //vertexPos.y = -vertexPos.y + screenSize.y;
@@ -70,4 +76,6 @@ void main()
     }
 
     textureCoordsOut = textureCoords[gl_VertexID];
+    renderOptions = transform.renderOptions;
+    materialIdx = transform.materialIdx;
 }

@@ -4,6 +4,10 @@
 
 #include "game.h"
 
+#include "sound.h"
+
+#include "ui.h"
+
 #define APIENTRY
 #define GL_GLEXT_PROTOTYPES  
 #include "gl_renderer.h" 
@@ -34,13 +38,21 @@ static update_game_type* update_game_ptr;
 //########################################################################
 //                      Cross Platform functions
 //########################################################################
+
+// Used to get Delta Time
+#include <chrono>
+double get_delta_time();
+
 void reload_game_dll(BumpAllocator* transientStorage);
 
 int main()
 {
 
+    // Initialize timestamp
+    get_delta_time();
+
     BumpAllocator transientStorage = make_bump_allocator(MB(50));
-    BumpAllocator persistentStorage = make_bump_allocator(MB(50));
+    BumpAllocator persistentStorage = make_bump_allocator(MB(256));
 
     input = (Input*)bump_alloc(&persistentStorage, sizeof(Input));
     if(!input)
@@ -56,18 +68,57 @@ int main()
         return -1;
     }
 
-    platform_fill_keycode_lookup_table();
-    platform_create_window(1280, 640, "Celeste Clone Motor");
+    gameState = (GameState*)bump_alloc(&persistentStorage, sizeof(GameState));
+    if(!gameState)
+    {
+        SM_ERROR("Failed to allocate GameState");
+        return -1;
+    }
 
+    uiState = (UIState*)bump_alloc(&persistentStorage, sizeof(UIState));
+    if(!uiState)
+    {
+        SM_ERROR("Failed to allocate UIState");
+        return -1;
+    }
+
+    soundState = (SoundState*)bump_alloc(&persistentStorage,sizeof(SoundState));
+    if(!soundState)
+    {
+        SM_ERROR("Failed to allocate SoundState");
+        return -1;
+    }
+
+    soundState->transientStorage = &transientStorage;
+    soundState->allocatedsoundsBuffer = bump_alloc(&persistentStorage, SOUND_BUFFER_SIZE);
+    if(!soundState->allocatedsoundsBuffer)
+    {
+        SM_ERROR("Failed to allocated Sounds Buffer");
+        return -1;
+    }
+
+    platform_fill_keycode_lookup_table();
+    platform_create_window(1280, 720, "Celeste Clone Motor");
+    platform_set_vsync(true);
+    if(!platform_init_audio())
+    {
+        SM_ERROR("Failed to initialize Audio");
+        return -1;
+    }
 
     gl_init(&transientStorage);
 
     while(running)
     {
+        float dt = get_delta_time();
+
+        reload_game_dll(&transientStorage);
+
         //Update
         platform_update_window();
-        update_game(gameState, renderData, input);
-        gl_render();
+        update_game(gameState, renderData, input, soundState, uiState, dt);
+        gl_render(&transientStorage);
+        platform_update_audio(dt);
 
         platform_swap_buffers(); 
 
@@ -77,9 +128,26 @@ int main()
     return 0;
 }
 
-void update_game(GameState* gameStateIn, RenderData* renderDataIn, Input* inputIn)
+void update_game(GameState* gameStateIn, 
+                RenderData* renderDataIn, 
+                Input* inputIn,
+                soundState* soundStateIn,
+                float dt)
 {
-    update_game_ptr(gameStateIn, renderDataIn,inputIn);
+    update_game_ptr(gameStateIn, renderDataIn,inputIn, soundStateIn, uiStateIn, dt);
+}
+
+double get_delta_time()
+{
+    //only executed once when entering the function (static)
+    static auto lastTime = std::chrono::steady_clock::now();
+    auto currentTime = std::chrono::steady_clock::now();
+
+    //second
+    double delta = std::chrono::duration<double>(currentTime - lastTime).count();
+    lastTime = currentTime;
+
+    return delta;
 }
 
 void reload_game_dll(BumpAllocator* transientStorage)
@@ -112,3 +180,4 @@ void reload_game_dll(BumpAllocator* transientStorage)
         lastEditTimestampGameDll = currentTimestampGameDll;
     }
 }
+
