@@ -10,16 +10,29 @@
 
 #define APIENTRY
 #define GL_GLEXT_PROTOTYPES  
-#include "gl_renderer.h" 
-
-static KeyCodeID KeyCodeLookupTable[KEY_COUNT];
-
-#include "platform.h"
-#ifdef _WIN32
-#include "win32_platform.cpp"
-#endif
 
 #include "gl_renderer.cpp"
+
+//########################################################################
+//                      Platform Includes
+//########################################################################
+#include "platform.h"
+#ifdef _WIN32
+#include "win32_platform.h"
+const char* gameLibName = "game.dll";
+const char* gameLoadLibName = "game_load.dll";
+#elif defined(__APPLE__)
+#include "mac_platform.cpp"
+const char* gameLibName = "game.so"; //????
+const char* gameLoadLibName = "game_load.so";
+#else //linux
+#include "linux_platform.cpp"
+const char* gameLibName = "game.so";
+const char* gameLoadLibName = "game_load.so";
+#endif
+
+#include "gl_renderer.h" 
+
 
 //########################################################################
 //                      Game DLL Stuff(Hot Code Reloading)
@@ -97,8 +110,8 @@ int main()
         return -1;
     }
 
-    platform_fill_keycode_lookup_table();
     platform_create_window(1280, 720, "Celeste Clone Motor");
+    platform_fill_keycode_lookup_table();
     platform_set_vsync(true);
     if(!platform_init_audio())
     {
@@ -155,25 +168,25 @@ void reload_game_dll(BumpAllocator* transientStorage)
     static void* gameDll;
     static long long lastEditTimestampGameDll;
 
-    long long currentTimestampGameDll = get_timestamp("game.dll");
+    long long currentTimestampGameDll = get_timestamp(gameLibName);
     if(currentTimestampGameDll > lastEditTimestampGameDll)
     {
         if(gameDll)
         {
             bool freeResult = platform_free_dynamic_library(gameDll);
-            SM_ASSERT(freeResult, "Failed to free game.dll");
+            SM_ASSERT(freeResult, "Failed to free %s", gameLibName);
             gameDll = nullptr;
-            SM_TRACE("Free game.dll");
+            SM_TRACE("Freed %s", gameLibName);
         }
 
-        while(!copy_file("game.dll", "game_load.dll", transientStorage))
+        while(!copy_file(gameLibName, gameLoadLibName, transientStorage))
         {
-            Sleep(10);
+            platform_sleep(10);
         }
-        SM_TRACE("Copied game.dll into game_load.dll");
+        SM_TRACE("Copied %s into %s", gameLibName, gameLoadLibName);
 
-        gameDll = platform_load_dynamic_library("game_load.dll");
-        SM_ASSERT(gameDll, "Failed to load game.dll");
+        gameDll = platform_load_dynamic_library(gameLoadLibName);
+        SM_ASSERT(gameDll, "Failed to load %s", gameLoadLibName);
 
         update_game_ptr = (update_game_type*)platform_load_dynamic_function(gameDll, "update_game");
         SM_ASSERT(update_game_ptr, "Failed to load update_game function");

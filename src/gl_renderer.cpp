@@ -202,6 +202,16 @@ bool gl_init(BumpAllocator* transientStorage)
     glAttachShader(glContext.programID, fragShaderID);
     glLinkProgram(glContext.programID);
 
+    // Validate if programs works
+    {
+        int programSuccess;
+        char programInfoLog[512];
+        glGetProgramiv(glContext.programID, 512, 0, programInfoLog);
+
+        SM_ASSERT(0, "Failed to link program: %s", programInfoLog);
+        return false;
+    }
+
     glDetachShader(glContext.programID, vertShaderID);
     glDetachShader(glContext.programID, fragShaderID);
     glDeleteShader(vertShaderID);
