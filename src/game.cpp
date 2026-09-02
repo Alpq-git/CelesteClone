@@ -4,6 +4,7 @@
 #include "render_interface.h"
 #include "CelesteClone_lib.h"
 #include "ui.h"
+#include "texts.h"
 
 //########################################
 //              Game Constants
@@ -95,25 +96,8 @@ IRect get_solid_rect(Solid solid)
     return{solid.pos - sprite.size / 2,sprite.size};
 }
 
-void simulate()
+void update_level(float dt)
 {
-    float dt = UPDATE_DELAY;
-
-    int buttonID = line_id(1);
-    Vec4 color = COLOR_WHITE;
-
-    if(is_hot(buttonID))
-    {
-        color = COLOR_GREEN;
-    }
-
-    if(do_button(SPRITE_BUTTON_PLAY, IVec2{WORLD_WIDTH/2, WORLD_HEIGHT/2}, buttonID, {.material{.color = color}}))
-    {
-        SM_TRACE("click");
-    }
-
-    do_ui_text("Watch out, behind you!", {0, 20}, {.material{.color = COLOR_BLUE}, .fontSize = 2.0f});
-
     // Update Player
     {
         Player& player = gameState->player;
@@ -619,6 +603,49 @@ void simulate()
     }
 }
 
+void update_main_menu(float dt)
+{
+    
+    int buttonID = line_id(1);
+    Vec4 color = COLOR_WHITE;
+
+    if(is_hot(buttonID))
+    {
+        color = COLOR_GREEN;
+    }
+
+    if(do_button(SPRITE_BUTTON_PLAY, IVec2{WORLD_WIDTH/2, WORLD_HEIGHT/2}, buttonID, {.material{.color = color}}))
+    {
+        gameState->state = GAME_STATE_IN_LEVEL;
+    }
+
+    do_ui_text(_(STRING_CELESTE_CLONE), (56,26),
+                {.metarial{.color = COLOR_BLACK},
+                            .fontSize = 2.0f,
+                            .layer = get_layer(LAYER_UI,10)});
+}
+
+
+void simulate()
+{
+    float dt = UPDATE_DELAY;
+
+    switch(gameState->state)
+    {
+        case GAME_STATE_IN_LEVEL:
+        {
+            update_level(dt);
+            break;
+        }
+        
+        case GAME_STATE_MAIN_MENU:
+        {
+            update_main_menu(dt);
+            break;
+        }
+    }
+}
+
 //########################################
 //              Game Functions(Exposed)
 //########################################
@@ -636,6 +663,8 @@ EXPORT_FN void update_game(GameState* gameStateIn,
         input = inputIn;
         soundState = soundStateIn;
         uiState = uiStateIn; 
+
+        init_strings();
     }
 
     if(!gameState->initialized)

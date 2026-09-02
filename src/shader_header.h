@@ -29,11 +29,12 @@ struct Transform
 {
     vec2 pos; //This is currently the top left
     vec2 size;
-    iVec2 atlasOffset;
+    ivec2 atlasOffset;
     ivec2 spriteSize;
     int renderOptions;
-    float layer;
     int materialIdx; 
+    float layer;
+    int padding;
 };
 
 struct Material

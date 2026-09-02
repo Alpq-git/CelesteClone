@@ -14,6 +14,15 @@ int RENDER_OPTION_FLIP_Y = BIT(1);
 //############################################
 //              Renderer Structs
 //############################################
+
+enum Layer
+{
+    LAYER_GAME,
+    LAYER_UI,
+    LAYER_COUNT
+};
+
+
 struct OrthographicCamera2D
 {
     float zoom = 1.0f;
@@ -26,6 +35,7 @@ struct DrawData
     Material material = {};
     int animationIdx;
     int renderOptions;
+    float layer = 0.0f;
 };
 
 struct TextData
@@ -33,6 +43,7 @@ struct TextData
     Material material = {};
     float fontSize = 1.0f;
     int renderOptions;
+    float layer = 0.0f;
 };
 
 struct Glyph
@@ -123,17 +134,46 @@ int get_material_idx(Material material = {})
     return renderData->materials.add(material);
 }
 
+float get_layer(Layer layer, float subLayer = 0.0f)
+{
+    float floatLayer = (float)layer;
+    float layerStep = 1.0f / (float)LAYER_COUNT;
+    float result = layerStep * floatLayer + subLayer / 1000.0f;
+    return result;
+}
+
+Transform get_transform(SpriteID spriteID, Vec2 pos, Vec2 size = {}, DrawData drawData = {})
+{
+    Sprite sprite = get_sprite(spriteID);
+    size = size ? size : vec_2(sprite.size);
+
+    Transform transform = {};
+    transform.materialIdx = get_material_idx(drawData.material);
+    transform.pos = pos - size / 2.0f;
+    transform.size = size;
+    transform.atlasOffset = sprite.atlasOffset;
+
+    // For animations, this is a multiple of the sprite size,
+    // based on the animationIdx
+    transform.atlasOffset.x += drawData.animationIdx * sprite.size.x;
+    transform.spriteSize = sprite.size;
+    transform.renderOptions = drawData.renderOptions;
+    transform.layer = drawData.layer;
+
+    return transform;
+}
+
 //############################################
 //              Renderer Functions
 //############################################
-void draw_quad(Vec2 pos, Vec2 size)
+void draw_quad(Transform transform)
 {
-    Transform transform = {};
-    transform.pos = pos - size / 2.0f;
-    transform.size = size;
-    transform.atlasOffset = {0,0};
-    transform.spriteSize = {1,1}; // Indexing into white
+    renderData->transforms.add(transform);
+}
 
+void draw_quad(Vec2 pos, Vec2 size, DrawData drawData = {})
+{
+    Transform transform = get_transform(SPRITE_WHITE, pos, size, drawData);
     renderData->transforms.add(transform);
 }
 
