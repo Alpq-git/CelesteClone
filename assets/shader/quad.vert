@@ -72,7 +72,7 @@ void main()
         vec2 vertexPos = vertices[gl_Vertex];
         //vertexPos.y = -vertexPos.y + screenSize.y;
         //vertexPos = 2.0 * (vertexPos / screenSize) - 1.0;
-        gl_Position = orthoPorjection * vec4(vertexPos, 0.0, 1.0);
+        gl_Position = orthoPorjection * vec4(vertexPos, transofrm.layer, 1.0);
     }
 
     textureCoordsOut = textureCoords[gl_VertexID];

@@ -1,6 +1,7 @@
 #include "game.h"
 
 #include "assets.h"
+#include "input.h"
 #include "render_interface.h"
 #include "CelesteClone_lib.h"
 #include "ui.h"
@@ -98,6 +99,10 @@ IRect get_solid_rect(Solid solid)
 
 void update_level(float dt)
 {
+    if(just_pressed(PAUSE))
+    {
+        gameState->state = GAME_STATE_MAIN_MENU;
+    }
     // Update Player
     {
         Player& player = gameState->player;
@@ -619,10 +624,21 @@ void update_main_menu(float dt)
         gameState->state = GAME_STATE_IN_LEVEL;
     }
 
-    do_ui_text(_(STRING_CELESTE_CLONE), (56,26),
-                {.metarial{.color = COLOR_BLACK},
-                            .fontSize = 2.0f,
-                            .layer = get_layer(LAYER_UI,10)});
+
+    do_ui_text(_(STRING_CELESTE_CLONE), {56, 20}, 
+             {.material{.color = COLOR_BLACK}, 
+             .fontSize = 2.0f, 
+             .layer = get_layer(LAYER_UI, 10)});
+
+    // Fullscreeen White quad for the menu
+    do_ui_quad(
+        {(float)WORLD_WIDTH / 2, (float)WORLD_HEIGHT / 2},
+        {(float)WORLD_WIDTH, (float)WORLD_HEIGHT},
+        {
+            .material{.color = {79.0f / 255.0f, 140.0f / 255.0f, 235.0f / 255.0f, 1.0f}},
+            .layer = get_layer(LAYER_UI, 0.0F)
+        } 
+    );
 }
 
 
@@ -717,6 +733,8 @@ EXPORT_FN void update_game(GameState* gameStateIn,
             gameState->keyMappings[MOUSE_LEFT].keys.add(KEY_MOUSE_LEFT);
             gameState->keyMappings[MOUSE_RIGHT].keys.add(KEY_MOUSE_RIGHT);
             gameState->keyMappings[JUMP].keys.add(KEY_SPACE);
+            gameState->keyMappings[PAUSE].keys.add(KEY_ESCAPE);
+
         }
 
 
@@ -724,18 +742,17 @@ EXPORT_FN void update_game(GameState* gameStateIn,
         {
             Solid solid = {};
             solid.spriteID = SPRITE_SOLID_01;
-            solid.keyframes.add({8*2,8*10});
-            solid.keyframes.add({8*10,8*10});
+            solid.keyframes.add({8 * 2,  8 * 10});
+            solid.keyframes.add({8 * 10, 8 * 10});
             solid.pos = {8 * 2, 8 * 10};
             solid.speed.x = 50.0f;
             gameState->solids.add(solid);
 
-
             solid = {};
             solid.spriteID = SPRITE_SOLID_02;
-            solid.keyframes.add({12 * 20, 8* 10});
-            solid.keyframes.add({12*20, 8*20});
-            solid.pos = {12 * 20,8 * 10};
+            solid.keyframes.add({12 * 20, 8 * 10});
+            solid.keyframes.add({12 * 20, 8 * 20});
+            solid.pos = {12 * 20, 8 * 10};
             solid.speed.y = 50.0f;
             gameState->solids.add(solid);
         }
@@ -775,13 +792,13 @@ EXPORT_FN void update_game(GameState* gameStateIn,
         for(int uiElementIdx = 0; uiElementIdx < uiState->uiElements.count; uiElementIdx++)
         {
             UIElement& uiElement = uiState->uiElements[uiElementIdx];
-            draw_sprite(uiElement.spriteID, uiElement.pos, uiElement.drawData);
+            draw_ui_sprite(uiElement.spriteID, uiElement.pos, uiElement.size, uiElement.drawData);
         }
 
-        for(int uiTextIdx = 0; uiTextIdx < uiState->uiText.count; uiTextIdx++)
+        for(int uiTextIdx = 0; uiTextIdx < uiState->uiTexts.count; uiTextIdx++)
         {
-            UIText& uiText = uiState->uiTexts[uiTextIdx];
-            draw_ui_text(uiText.text, uiText.pos, uiText.textData);
+        UIText& uiText = uiState->uiTexts[uiTextIdx];
+        draw_ui_text(uiText.text, uiText.pos, uiText.textData);
         }
     }
 
@@ -791,7 +808,7 @@ EXPORT_FN void update_game(GameState* gameStateIn,
         {
             Solid& solid = gameState->solids[solidIdx];
             IVec2 solidPos = lerp(solid.prevPos, solid.pos, interpolateDT);
-            draw_sprite(solid.spriteID, solidPos);  
+            draw_sprite(solid.spriteID, solidPos, {.layer = get_layer(LAYER_GAME, 0)});  
         }
     }
 
@@ -802,11 +819,12 @@ EXPORT_FN void update_game(GameState* gameStateIn,
 
         Sprite sprite = get_sprite(player.animationSprites[player.animationState]);
         int animationIdx = animate(&player.runAnimTime, sprite.frameCount, 0.6f);
-        draw_sprite(player.animationSprites[player.animationState],playerPos,
-                    {
-                        .animtionIdx = animationIdx,
-                        .renderOptions = player.renderOptions
-                    });
+        draw_sprite(player.animationSprites[player.animationState], playerPos, 
+                {
+                  .animationIdx = animationIdx,
+                  .renderOptions = player.renderOptions,
+                  .layer = get_layer(LAYER_GAME, 0)
+                });
     }
 
     //Drawing Tileset
@@ -825,37 +843,15 @@ EXPORT_FN void update_game(GameState* gameStateIn,
                         //Draw Tile
                 Transform transform = {};
                 //Draw the Tile around the center
-                transform.materialIdx = get_material_id({.color = COLOR_WHITE});
+                transform.materialIdx = get_material_idx({.color = COLOR_WHITE});
                 transform.pos = {x * (float)TILESIZE, y * (float)TILESIZE};
                 transform.size = {8, 8};
                 transform.spriteSize = {8, 8};
                 transform.atlasOffset = gameState->tileCoords[tile->neighbourMask];
+                transform.layer = get_layer(LAYER_GAME, 0);
                 draw_quad(transform);
 
             } 
         }
     }
-  
-
-    draw_sprite(SPRITE_DICE, gameState->playerPos);
-
-    if(key_is_down(KEY_A))
-    {
-        gameState->playerPos.x -= 1;
-    }
-
-    if(key_is_down(KEY_D))
-    {
-        gameState->playerPos.x += 1;
-    }
-
-    if(key_is_down(KEY_W))
-    {
-        gameState->playerPos.x += 1; 
-    }
-
-    if(key_is_down(KEY_S))
-    {
-        gameState->playerPos -= 1;
-    } 
 }

@@ -27,8 +27,8 @@ struct GLContext
     GLuint orthoProjectionID;
     GLuint fontAtlasID;
 
-    long long textureTimeStamp;
-    long long shaderTimeStamp;
+    long long textureTimestamp;
+    long long shaderTimestamp;
 };
 
 //#################################################

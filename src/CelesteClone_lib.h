@@ -503,6 +503,7 @@ IVec2 lerp(IVec2 a, IVec2 b, float t)
   IVec2 result;
   result.x = (int)floorf(lerp((float)a.x, (float)b.x, t));
   result.y = (int)floorf(lerp((float)a.y, (float)b.y, t));
+  return result;
 }
 
 struct Vec4
@@ -603,7 +604,7 @@ struct IRect
   IVec2 size;
 };
 
-bool point_in_rect(Vec2 point, Rect rect)
+bool point_in_rect(Vec2 point, IRect rect)
 {
   return (point.x >= rect.pos.x &&
           point.x <= rect.pos.x + rect.size.x &&

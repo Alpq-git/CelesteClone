@@ -32,6 +32,8 @@ enum GameInputType
     MOUSE_LEFT,
     MOUSE_RIGHT,
 
+    PAUSE,
+
     GAME_INPUT_COUNT
 };
 
@@ -67,15 +69,16 @@ struct Player
     SpriteID animationSprites[PLAYER_ANIM_COUNT];
 };
 
+
 struct Solid
 {
-    SpriteID spriteID;
-    IVec2 pos;
-    IVec2 prevPos;
-    Vec2 remainder;
-    Vec2 speed;
-    int keyframeIdx;
-    Array<IVec2, 2> keyframes;
+  SpriteID spriteID;
+  IVec2 pos;
+  IVec2 prevPos;
+  Vec2 remainder;
+  Vec2 speed;
+  int keyframeIdx;
+  Array<IVec2, 2> keyframes;
 };
 
 enum GameStateID

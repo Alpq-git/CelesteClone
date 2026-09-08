@@ -27,14 +27,14 @@ int RENDERING_OPTION_FONT = BIT(2);
 
 struct Transform
 {
-    vec2 pos; //This is currently the top left
-    vec2 size;
-    ivec2 atlasOffset;
-    ivec2 spriteSize;
-    int renderOptions;
-    int materialIdx; 
-    float layer;
-    int padding;
+  vec2 pos; // This is currently the Top Left!!
+  vec2 size;
+  ivec2 atlasOffset;
+  ivec2 spriteSize;
+  int renderOptions;
+  int materialIdx;
+  float layer;
+  int padding;
 };
 
 struct Material

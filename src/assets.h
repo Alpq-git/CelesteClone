@@ -108,7 +108,9 @@ Sprite get_sprite(SpriteID spriteID)
             sprite.size = {32, 16};
             break;
         }
-    }
+        case SPRITE_COUNT:
+          break;
+        }
 
     return sprite;
 }

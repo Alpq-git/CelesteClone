@@ -179,19 +179,7 @@ void draw_quad(Vec2 pos, Vec2 size, DrawData drawData = {})
 
 void draw_sprite(SpriteID spriteID, Vec2 pos, DrawData drawData = {})
 {
-    Sprite sprite = get_sprite(spriteID);
-    // For Animations, this is a multiple of the sprites size,
-    // based on the animationIdx
-    sprite.atlasOffset.x += drawData.animationIdx * sprite.size.x;
-
-    Transform transform = {};
-    transform.materialIdx = get_material_idx(drawData.material);
-    transform.pos = pos - vec_2(sprite.size) / 2.0f;
-    transform.size = vec_2(sprite.size);
-    transform.atlasOffset = sprite.atlasOffset;
-    transform.spriteSize = sprite.size;
-    transform.renderOptions = drawData.renderOptions ;
-
+    Transform transform = get_transform(spriteID, pos, {}, drawData);
     renderData->transforms.add(transform);
 }
 
@@ -199,6 +187,27 @@ void draw_sprite(SpriteID spriteID, IVec2 pos, DrawData drawData = {})
 {
     draw_sprite(spriteID, vec_2(pos),drawData);
 }
+
+// ###################################################################
+//                  Render Interface UI Rendering
+// ###################################################################
+void draw_ui_sprite(SpriteID spriteID, Vec2 pos, Vec2 size = {}, DrawData drawData = {})
+{
+    Transform transform = get_transform(spriteID, pos, size, drawData );
+    renderData->uiTransform.add(transform);
+}
+
+void draw_ui_sprite(SpriteID spriteID, Vec2 pos, DrawData drawData = {})
+{
+    Transform transform = get_transform(spriteID, pos, {}, drawData);
+    renderData->uiTransform.add(transform);
+}
+
+void draw_ui_sprite(SpriteID spriteID, IVec2 pos, DrawData drawData = {})
+{
+    draw_ui_sprite(spriteID, vec_2(pos), drawData);
+}
+
 
 // ###################################################################
 //                  Render Interface UI Font Rendering
@@ -230,6 +239,7 @@ void draw_ui_text(char* text, Vec2 pos, TextData textData = {})
         transform.spriteSize = glyph.size;
         transform.size = vec_2(glyph.size) * textData.fontSize;
         transform.renderOptions = textData.renderOptions | RENDERING_OPTION_FONT;
+        transform.layer = textData.layer;
 
         renderData->uiTransform.add(transform);
 
